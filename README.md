@@ -367,9 +367,9 @@ htdocs/
     ├── config.php
     ├── logs/
     │   └── php_error.log
-    |── test.php
-    |__ otherfile.php
-
+    ├── test.php
+    ├──otherfile.php
+      
 ```
 __```php_error.log``` คืออะไร__
 
