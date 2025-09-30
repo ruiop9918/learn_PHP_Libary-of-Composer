@@ -351,3 +351,115 @@ $log->error('มี Error เกิดขึ้น!');
     - Authentication => (```firebase/php-jwt```)
     - API Client =. (```guzzlehttp/guzzle```)
     - Logging => (```monolog/monolog```)
+
+---
+## หรือการรันใน Hosting จริงๆ วิธีการใช้ก็เเตกต่างออกไป
+- สร้างไฟล์ ```config.php``` แล้วใส่ ```ini_set()``` ทั้งหมดไว้
+- จากนั้น ```require_once 'config.php';``` ในทุกไฟล์ที่ต้องใช้
+
+__🔹 ตัวอย่างโครงสร้างโปรเจกต์__
+```lua
+lua
+
+htdocs/
+└── Myproject/
+    ├── index.php
+    ├── config.php
+    ├── logs/
+    │   └── php_error.log
+    └── otherfile.php
+
+```
+__```php_error.log``` คืออะไร__
+
+เป็นไฟล์ที่ PHP ใช้ เก็บข้อความ Error / Warning / Notice แทนการโชว์บนหน้าเว็บโดยตรง
+- ปลอดภัยกว่า (ผู้ใช้ไม่เห็นรายละเอียด server)
+- สะดวกเวลา debug ปัญหา
+
+**ปกติ PHP จะโชว์ error บนหน้าเว็บ (ไม่ปลอดภัยถ้าเป็น production)**
+
+ตัวอย่างโค้ด ```file config.php``` แบบนี้ 
+```php
+php
+
+<?php
+    
+// ตั้ง timezone ให้ตรงกับประเทศไทย
+date_default_timezone_set('Asia/Bangkok');
+
+// เปิดให้รายงาน error ทั้งหมด
+error_reporting(E_ALL);
+
+// ซ่อน error บนหน้าเว็บ (ป้องกัน user เห็น)
+ini_set('display_errors', 0);
+
+// เปิดระบบบันทึก error
+ini_set('log_errors', 1);
+
+// เส้นทางไฟล์ log
+$logFile = __DIR__ . "/logs/php_error.log";
+
+// ฟังก์ชันจัดการ error
+function customErrorHandler($errno, $errstr, $errfile, $errline) {
+    global $logFile;
+
+    $types = [
+        E_ERROR => "ERROR",
+        E_WARNING => "WARNING",
+        E_PARSE => "PARSE ERROR",
+        E_NOTICE => "NOTICE",
+        E_CORE_ERROR => "CORE ERROR",
+        E_USER_ERROR => "USER ERROR",
+        E_USER_WARNING => "USER WARNING",
+        E_USER_NOTICE => "USER NOTICE",
+    ];
+
+    $type = isset($types[$errno]) ? $types[$errno] : "UNKNOWN";
+
+    $message = "[" . date("Y-m-d H:i:s") . "] $type: $errstr in $errfile on line $errline\n";
+    error_log($message, 3, $logFile);
+}
+
+// ฟังก์ชันจัดการ exception
+function customExceptionHandler($e) {
+    global $logFile;
+
+    $message = "[" . date("Y-m-d H:i:s") . "] EXCEPTION: " .
+               $e->getMessage() . " in " . $e->getFile() .
+               " on line " . $e->getLine() . "\n";
+    error_log($message, 3, $logFile);
+}
+
+// ตั้ง handler
+set_error_handler("customErrorHandler");
+set_exception_handler("customExceptionHandler");
+
+?>
+
+```
+
+แล้วเวลาใช้งานในหน้าอื่น (เช่น ```index.php```) ให้เรียก
+```php
+php
+
+<?php
+require_once __DIR__ . '/config.php';
+
+echo $x; // ตัวแปรไม่มี จะ error
+
+```
+ตำแหน่งไฟล์ ```php_error.log```
+- คุณต้องสร้างโฟลเดอร์ logs ในโปรเจกต์
+- เช่น
+```bash
+bash
+
+htdocs/Myproject/logs/php_error.log
+```
+- ถ้าใช้ hosting ต้องตรวจสอบสิทธิ์ (chmod 755 หรือ 775) เพื่อให้ PHP เขียนไฟล์ได้
+
+### สรุป:
+
+- ใส่แค่ ```ini_set()``` ใน ```config.php``` ก็พอ
+- เพิ่มไฟล์เปร่า ```php_error.log``` 
+- แต่ต้องมีโฟลเดอร์ ```logs/``` และสิทธิ์เขียน
